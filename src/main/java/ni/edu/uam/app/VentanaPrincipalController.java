@@ -1,9 +1,10 @@
 package ni.edu.uam.app;
 
 import javafx.application.Platform;
-import javafx.geometry.Insets;
-import javafx.scene.control.*;
-import javafx.scene.layout.*;
+import javafx.fxml.FXML;
+import javafx.scene.control.Button;
+import javafx.scene.control.Label;
+import javafx.scene.control.TextArea;
 import ni.edu.uam.modelo.ContadorCompartido;
 import ni.edu.uam.modelo.EstadoSistema;
 import ni.edu.uam.tareas.MonitorHilos;
@@ -13,13 +14,14 @@ import ni.edu.uam.tareas.VentanillaListener;
 import java.util.HashMap;
 import java.util.Map;
 
-public class VentanaPrincipal extends BorderPane implements VentanillaListener {
-    private final Button btnIniciar = new Button("Iniciar Operaciones");
-    private final Button btnDetener = new Button("Detener Proceso");
-    private final Label lblEstado = new Label("Estado: " + EstadoSistema.EN_ESPERA.getEtiqueta());
-    private final Label lblContador = new Label("Contador Global: 0");
-    private final Label lblMonitor = new Label("Estados de Hilos: Sin actividad");
-    private final TextArea txtLog = new TextArea();
+public class VentanaPrincipalController implements VentanillaListener {
+
+    @FXML private Button btnIniciar;
+    @FXML private Button btnDetener;
+    @FXML private Label lblEstado;
+    @FXML private Label lblContador;
+    @FXML private Label lblMonitor;
+    @FXML private TextArea txtLog;
 
     private final ContadorCompartido contadorCompartido = new ContadorCompartido();
     private ProcesoVentanilla tareaV1;
@@ -31,27 +33,8 @@ public class VentanaPrincipal extends BorderPane implements VentanillaListener {
 
     private int ventanillasTerminadas = 0;
 
-    public VentanaPrincipal() {
-        configurarUI();
-        configurarAcciones();
-    }
-
-    private void configurarUI() {
-        setPadding(new Insets(15));
-        HBox panelControles = new HBox(10, btnIniciar, btnDetener);
-        VBox panelCentral = new VBox(10, panelControles, lblEstado, lblContador, lblMonitor, new Label("Registro:"), txtLog);
-        txtLog.setEditable(false);
-        txtLog.setPrefHeight(250);
-        btnDetener.setDisable(true);
-        setCenter(panelCentral);
-    }
-
-    private void configurarAcciones() {
-        btnIniciar.setOnAction(e -> iniciarProcesos());
-        btnDetener.setOnAction(e -> detenerProcesos());
-    }
-
-    private void iniciarProcesos() {
+    @FXML
+    private void manejarIniciar() {
         btnIniciar.setDisable(true);
         btnDetener.setDisable(false);
         txtLog.clear();
@@ -80,7 +63,8 @@ public class VentanaPrincipal extends BorderPane implements VentanillaListener {
         hiloMonitor.start();
     }
 
-    private void detenerProcesos() {
+    @FXML
+    private void manejarDetener() {
         lblEstado.setText("Estado: " + EstadoSistema.DETENIENDO.getEtiqueta());
         btnDetener.setDisable(true);
 
@@ -100,7 +84,7 @@ public class VentanaPrincipal extends BorderPane implements VentanillaListener {
             Platform.runLater(() -> {
                 lblEstado.setText("Estado: " + EstadoSistema.DETENIDO.getEtiqueta());
                 btnIniciar.setDisable(false);
-                txtLog.appendText(">> Todas las ventanillas se detuvieron limpiamente.\n");
+                txtLog.appendText(">> Operaciones detenidas ordenadamente.\n");
             });
         }).start();
     }
@@ -109,7 +93,7 @@ public class VentanaPrincipal extends BorderPane implements VentanillaListener {
     public void alProcesarSolicitud(String nombreVentanilla, int totalActual) {
         Platform.runLater(() -> {
             lblContador.setText("Contador Global: " + totalActual);
-            txtLog.appendText(nombreVentanilla + " registro transaccion. Total: " + totalActual + "\n");
+            txtLog.appendText(nombreVentanilla + " proceso transaccion. Total: " + totalActual + "\n");
         });
     }
 
@@ -121,7 +105,7 @@ public class VentanaPrincipal extends BorderPane implements VentanillaListener {
     @Override
     public void alFinalizar(String nombreVentanilla) {
         Platform.runLater(() -> {
-            txtLog.appendText(nombreVentanilla + " ha concluido su ciclo.\n");
+            txtLog.appendText(nombreVentanilla + " ha concluido.\n");
             ventanillasTerminadas++;
             if (ventanillasTerminadas == 2) {
                 lblEstado.setText("Estado: " + EstadoSistema.FINALIZADO.getEtiqueta());
