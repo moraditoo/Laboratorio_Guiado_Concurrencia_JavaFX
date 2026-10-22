@@ -1,8 +1,11 @@
-module ni.edu.uam.laboratorio_guiado_concurrencia_javafx {
+module ni.edu.uam {
     requires javafx.controls;
     requires javafx.fxml;
 
+    opens ni.edu.uam.app to javafx.fxml;
+    opens ni.edu.uam.modelo to javafx.base;
 
-    opens ni.edu.uam.laboratorio_guiado_concurrencia_javafx to javafx.fxml;
-    exports ni.edu.uam.laboratorio_guiado_concurrencia_javafx;
+    exports ni.edu.uam.app;
+    exports ni.edu.uam.modelo;
+    exports ni.edu.uam.tareas;
 }
