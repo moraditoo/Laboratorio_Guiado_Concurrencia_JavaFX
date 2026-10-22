@@ -8,6 +8,7 @@ public class ProcesoVentanilla implements Runnable {
     private final int operacionesTotales;
     private final VentanillaListener listener;
     private volatile boolean activo = true;
+    private int procesadas = 0;
 
     public ProcesoVentanilla(String nombre, ContadorCompartido contador, int operacionesTotales, VentanillaListener listener) {
         this.nombre = nombre;
@@ -20,33 +21,43 @@ public class ProcesoVentanilla implements Runnable {
         this.activo = false;
     }
 
-    public boolean isActivo() {
-        return activo;
+    public void activar() {
+        this.activo = true;
+    }
+
+    public int getProcesadas() {
+        return procesadas;
+    }
+
+    public int getOperacionesTotales() {
+        return operacionesTotales;
+    }
+
+    public boolean estaCompletado() {
+        return procesadas >= operacionesTotales;
+    }
+
+    public void reiniciarProgreso() {
+        this.procesadas = 0;
+        this.activo = true;
     }
 
     @Override
     public void run() {
-        int procesadas = 0;
-
-        // Ciclo con verificaciones cooperativas para detención limpia
         while (activo && !Thread.currentThread().isInterrupted() && procesadas < operacionesTotales) {
             try {
-                Thread.sleep(250); // Simula el tiempo de procesamiento de cada solicitud
-
+                Thread.sleep(250);
                 contador.incrementarSincronizado();
                 procesadas++;
-
                 if (listener != null) {
                     listener.alProcesarSolicitud(nombre, contador.getContadorSincronizado());
                 }
             } catch (InterruptedException e) {
-                // Restaura la bandera de interrupción y rompe el ciclo para salir de inmediato
                 Thread.currentThread().interrupt();
                 break;
             }
         }
-
-        if (listener != null) {
+        if (listener != null && procesadas >= operacionesTotales) {
             listener.alFinalizar(nombre);
         }
     }
