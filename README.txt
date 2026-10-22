@@ -1,82 +1,62 @@
-# Laboratorio Guiado: Concurrencia en Java y JavaFX
+# Sistema de Ventanillas Concurrentes en JavaFX
 
-Aplicación de escritorio concurrente desarrollada para la asignatura de **Programación de aplicaciones de escritorio** de la **Universidad Americana (UAM)**.
+## Contexto y Planteamiento del Problema
 
----
+En entornos de alta demanda operativa (entidades bancarias, oficinas de atención y cajas de facturación), múltiples terminales o ventanillas procesan transacciones de manera simultánea compartiendo una misma base de datos o acumulador central. 
 
-## 1. Integrantes, Ramas y Distribución Técnica
+Este proyecto modela un sistema de procesamiento transaccional con dos ventanillas concurrentes (`Ventanilla-A` y `Ventanilla-B`) que incrementan un contador global de solicitudes completadas. El reto arquitectónico radica en:
+1. **Evitar pérdidas de cómputo:** Proteger el recurso compartido contra condiciones de carrera mediante primitivas de sincronización atómicas y exclusión mutua.
+2. **Preservar la responsividad gráfica:** Desacoplar completamente el trabajo pesado del hilo de interfaz (`JavaFX Application Thread`), evitando bloqueos o congelamiento de la ventana.
+3. **Cancelación cooperativa y reanudación segura:** Implementar un mecanismo de parada controlada sin recurrir a métodos destructivos como `Thread.stop()`, permitiendo reanudar o reiniciar el lote de operaciones sin dejar hilos huérfanos o inconsistencias en memoria.
 
-| Integrante | Rama | Módulo / Estaciones Asignadas |
+## Distribución de Trabajo y Gestión en GitHub
+
+El equipo está compuesto por 3 integrantes. La responsabilidad técnica y las ramas asignadas se dividieron equitativamente:
+
+| Integrante | Rama Git | Rol y Estaciones Asignadas |
 | :--- | :--- | :--- |
-| **Brandon** | `feature/brandon` | **Estación 3:** Sincronización de Recursos Compartidos, Modelos de Exclusión Mutua (`synchronized` / `AtomicInteger`) y Pruebas de Condición de Carrera. |
-| **Andres** | `feature/andres` | **Estaciones 1 y 4:** Ciclo de vida con `Runnable`, Procesos en Segundo Plano, Detención Cooperativa (`volatile` + `interrupt`) y Reanudación de Lote[cite: 1]. |
-| **Dylan** | `feature/dylan` | **Estaciones 2 y 5:** Interfaz Gráfica FXML, Monitor de Estados (`getState`), Despacho UI con `Platform.runLater()` y Control de Escena[cite: 1]. |
+| **Brandon** | `feature/brandon` | **Estación 3:** Sincronización de Recursos Compartidos, Modelos de Exclusión Mutua (`synchronized`, `AtomicInteger`) y Pruebas de Condición de Carrera. |
+| **Andres** | `feature/andres` | **Estaciones 1 y 4:** Tareas de Fondo con `Runnable`, Control de Ciclo de Vida, Detención Cooperativa (`volatile` + `interrupt`) y Reanudación de Lote. |
+| **Dylan** | `feature/dylan` | **Estaciones 2 y 5:** Interfaz Gráfica FXML Minimalista, Monitor de Estados Asíncrono (`getState`), Despacho UI con `Platform.runLater()` y Gestión del Stage. |
+
+### Flujo de Integración y Reglas de Repositorio
+
+* `main`: Rama de producción bloqueada para commits directos. Solo se integra mediante Pull Requests aprobados y validados.
+* Cada desarrollador trabaja en su rama individual, ejecuta pruebas locales y abre un PR con la evidencia correspondiente.
+* El líder de integración resuelve los conflictos de merge preservando la consistencia modular antes de publicar el release final.
 
 ---
 
-## 2. Flujo de Trabajo y Ramas en GitHub
+## Matriz de Pruebas y Evidencias
 
-El repositorio sigue un modelo de integración estricta para garantizar trazabilidad[cite: 1]:
-* `main`: Rama de producción protegida. Únicamente el líder integra cambios mediante Pull Requests aprobados[cite: 1].
-* `feature/brandon`: Desarrollo del modelo y pruebas de atomicidad[cite: 1].
-* `feature/andres`: Implementación de los hilos de trabajo y detención[cite: 1].
-* `feature/dylan`: Ensamblaje visual, controlador FXML y monitor asíncrono[cite: 1].
-
----
-
-## 3. Matriz de Pruebas y Evidencias
-
-| Prueba | Resultado Esperado | Evidencia / Hallazgo |
+| Prueba | Resultado Esperado | Evidencia / Hallazgo Verificado |
 | :--- | :--- | :--- |
-| **Dos ventanillas**[cite: 1, 3] | Ambas trabajan y la ventana responde[cite: 1, 3] | `Ventanilla-A` y `Ventanilla-B` intercalan transacciones en el registro en tiempo real; la ventana se puede arrastrar y redimensionar a 60 FPS sin retraso[cite: 1]. |
-| **Conteo concurrente**[cite: 1, 3] | Total correcto sin pérdidas[cite: 1, 3] | El `ContadorCompartido` alcanza exactamente 40/40 solicitudes mediante sincronización intrínseca; en la prueba sin sincronizar (`PruebaCondicionCarrera`) se evidencian pérdidas de entre 100 y 300 conteos por condición de carrera[cite: 1]. |
-| **Cancelación**[cite: 1, 3] | Las tareas finalizan cooperativamente[cite: 1, 3] | Al pulsar «Detener», la bandera `volatile activo` pasa a `false` y se envía `interrupt()`; los hilos atrapan `InterruptedException`, rompen el bucle y cambian al estado `DETENIDO` sin excepciones no controladas[cite: 1]. |
-| **Reinicio**[cite: 1, 3] | No quedan hilos de la sesión anterior[cite: 1, 3] | Se verifica con `join()` que los hilos previos alcancen el estado `TERMINATED` en segundo plano antes de permitir una nueva ejecución limpia o reanudada[cite: 1]. |
-| **Estados**[cite: 1, 3] | Observaciones explicadas con evidencia[cite: 1, 3] | El hilo monitor registra en tiempo real transiciones: `NEW` (antes de `start()`), `TIMED_WAITING` (durante `Thread.sleep()`), `RUNNABLE` (procesando incremento) y `TERMINATED` (al culminar)[cite: 1]. |
+| **Dos ventanillas** | Ambas trabajan y la ventana responde | `Ventanilla-A` y `Ventanilla-B` intercalan transacciones concurrentemente; la ventana se puede redimensionar y arrastrar fluidamente sin degradar los FPS. |
+| **Conteo concurrente** | Total correcto sin pérdidas | El contador acumulador alcanza exactamente 40/40 solicitudes mediante sincronización intrínseca; en la prueba sin sincronizar (`PruebaCondicionCarrera`) se registran pérdidas de 100 a 300 conteos por condición de carrera. |
+| **Cancelación** | Las tareas finalizan cooperativamente | Al pulsar «Detener», la bandera `volatile activo` pasa a `false` y se envía `interrupt()`; los hilos atrapan `InterruptedException`, rompen el ciclo y entran en estado `DETENIDO` sin errores en consola. |
+| **Reinicio** | No quedan hilos de la sesión anterior | Se comprueba con `join()` que los subprocesos previos alcancen el estado `TERMINATED` fuera del hilo de UI antes de inicializar o reanudar un nuevo ciclo de trabajo. |
+| **Estados** | Observaciones explicadas con evidencia | El monitor en segundo plano captura en tiempo real las transiciones del ciclo de vida: `NEW`, `RUNNABLE`, `TIMED_WAITING` y `TERMINATED`. |
 
 ---
 
-## 4. Respuestas Técnicas y Justificación (Rúbrica)
+## Análisis Técnico y Respuestas a la Rúbrica
 
-### ¿Qué error apareció antes de sincronizar?
-Apareció una **condición de carrera** (*race condition*)[cite: 1]. La operación `contador++` consta de tres instrucciones a nivel de bytecode: leer el valor de memoria (`getfield`), sumar uno (`iadd`) y almacenar el resultado (`putfield`). Cuando dos hilos ejecutan estas fases simultáneamente sobre el mismo núcleo de memoria sin exclusión mutua, uno de los hilos sobrescribe el valor del otro, provocando pérdida de incrementos[cite: 1]. Al encapsular la operación en un método `synchronized` o usar `AtomicInteger` (basado en hardware CAS - *Compare-And-Swap*), se garantiza que solo un hilo modifique la dirección de memoria a la vez[cite: 1].
+### 1. ¿Qué error apareció antes de sincronizar?
+Se manifestó una **condición de carrera** (*race condition*). A nivel de bytecode en la JVM, la instrucción `total++` no es atómica: se descompone en tres operaciones individuales (`getfield` para leer el valor, `iadd` para incrementarlo en el registro de la CPU y `putfield` para guardarlo de vuelta en la memoria principal). Cuando dos núcleos de procesamiento ejecutan estas etapas simultáneamente sin barreras de sincronización, uno de los hilos sobreescribe el valor del otro, perdiendo ciclos de incremento. La exclusión mutua mediante `synchronized` o `AtomicInteger` (que utiliza la instrucción nativa del procesador *Compare-And-Swap*) asegura que la operación se realice de forma indivisible.
 
-### ¿Cómo se evitó bloquear JavaFX?
-El hilo principal de JavaFX (*JavaFX Application Thread*) procesa de manera exclusiva la cola de eventos y el renderizado de la interfaz[cite: 1]. Si se invoca `Thread.sleep()`, bucles largos o `join()` directamente en el controlador, la UI se congela y deja de responder a eventos del sistema operativo[cite: 1]. Para evitarlo:
-1. Las operaciones de las ventanillas se ejecutan en instancias independientes de `Thread`[cite: 1].
-2. Los bloqueos de espera segura (`join()`) al pulsar «Detener» o «Reiniciar» se encapsulan dentro de un hilo trabajador en segundo plano.
-3. Todas las mutaciones de controles visuales (etiquetas, barra de progreso y registros) se despachan al hilo gráfico mediante `Platform.runLater()`[cite: 1].
+### 2. ¿Cómo se evitó bloquear JavaFX?
+El **JavaFX Application Thread** tiene la responsabilidad única de gestionar los eventos del sistema operativo (clics, teclado) y el refresco visual de la escena. Si se invoca `Thread.sleep()`, bucles intensivos o llamadas sincrónicas a `Thread.join()` dentro del hilo de la interfaz, el despachador se detiene y la ventana se congela. Se resolvió mediante tres principios:
+1. El procesamiento de las ventanillas corre en subprocesos independientes (`Thread-Ventanilla-A` y `Thread-Ventanilla-B`).
+2. Las operaciones bloqueantes de espera (`join()`) para detener o reiniciar se ejecutan dentro de un hilo trabajador en background.
+3. La sincronización hacia la UI se canaliza exclusivamente a través de la cola asíncrona de `Platform.runLater()`.
 
-### ¿Qué condiciones se verificaron para detener y reiniciar?
-Para la detención no se empleó el método obsoleto e inseguro `Thread.stop()`[cite: 1]. Se utilizó una detención cooperativa que evalúa dos condiciones en cada ciclo:
-1. Una bandera `volatile boolean activo` que asegura visibilidad atómica e inmediata entre cachés de la CPU[cite: 1].
-2. El estado de interrupción `Thread.currentThread().isInterrupted()`, complementado con la captura de `InterruptedException` para reactivar la señal de corte si el hilo estaba suspendido en `Thread.sleep()`[cite: 1].
+### 3. ¿Qué condiciones se verificaron para detener y reiniciar?
+Nunca se utilizó el método obsoleto y propenso a corrupciones `Thread.stop()`. Se utilizó una detención cooperativa en dos niveles:
+* Una bandera `volatile boolean activo` que deshabilita la optimización por caché local de cada CPU y garantiza visibilidad inmediata entre hilos.
+* Verificación continua de `Thread.currentThread().isInterrupted()` y captura controlada de `InterruptedException` para reactivar la interrupción y abandonar inmediatamente el bucle si el hilo estaba suspendido en `Thread.sleep()`.
 
-Para el reinicio y reanudación, se comprobó que los hilos antiguos estuvieran completamente en estado `TERMINATED` mediante `isAlive()` y `join()`, garantizando que ninguna tarea zombi siga mutando el contador global[cite: 1].
+Para el reinicio o la reanudación, se aseguró que los hilos anteriores estuvieran totalmente finalizados comprobando `isAlive()` y ejecutando `join()` previo a instanciar las nuevas ejecuciones.
 
-### ¿Qué mejoraría para procesar 100,000 solicitudes?
-1. **Pool de Hilos (`ExecutorService`):** Evitar la creación masiva de hilos del sistema operativo utilizando un `ThreadPoolExecutor` acotado (por ejemplo, con tamaño fijo equivalente al número de núcleos disponibles) para gestionar la cola de trabajo.
-2. **Actualización Agrupada (*Batching*):** Despachar 100,000 llamadas individuales a `Platform.runLater()` colapsaría el búfer del *JavaFX Application Thread*[cite: 1]. Se debe desacoplar la tasa de procesamiento de la tasa de refresco visual, actualizando la interfaz periódicamente (por ejemplo, cada 50 o 100 transacciones acumuladas, o mediante un `AnimationTimer` sincronizado a 60 FPS)[cite: 1].
-
----
-
-## 5. Retos de Análisis Colaborativo (GitHub y Git)
-
-### ¿Qué riesgos surgen si dos integrantes modifican el mismo controlador JavaFX al mismo tiempo? Propongan una estrategia de integración.
-Surgen conflictos de fusión (*merge conflicts*), regresión de funcionalidades y sobreescritura accidental de lógica crítica o inyecciones `@FXML`.
-* **Estrategia:** Desacoplar responsabilidades. Modularizar la lógica de negocio en clases de servicio independientes (`tareas` y `modelo`), dejando en el controlador únicamente el enrutamiento de eventos[cite: 1]. Para ramas paralelas, se exige actualizar la rama local mediante `git fetch origin` y `git rebase origin/main` antes de abrir el Pull Request, resolviendo discrepancias de forma controlada[cite: 1].
-
-### ¿Por qué un Pull Request con código que compila puede seguir siendo incorrecto desde el punto de vista de la concurrencia?
-El compilador de Java (`javac`) solo valida la sintaxis y el sistema de tipos. No puede detectar condiciones de carrera, bloqueos mutuos (*deadlocks*), inanición de hilos (*thread starvation*), falta de visibilidad en memoria (ausencia de `volatile` o barreras de sincronización) ni violaciones del hilo gráfico por invocar métodos de JavaFX fuera del *Application Thread*.
-
-### ¿Qué evidencias demostrarían que la detención de los hilos fue controlada y que la interfaz JavaFX no quedó bloqueada?
-1. La captura de eventos de la ventana permanece fluida: la barra de progreso responde de inmediato y el botón «Iniciar/Reanudar» pasa a habilitarse al instante.
-2. En la consola y en el monitor visual, el estado de los hilos transita de forma ordenada de `RUNNABLE`/`TIMED_WAITING` a `TERMINATED` sin imprimir trazas de excepción no controladas como `IllegalThreadStateException` o `InterruptedException` sin atrapar[cite: 1].
-3. El depurador de hilos de IntelliJ muestra que los subprocesos `Thread-Ventanilla-A` y `Thread-Ventanilla-B` ya no existen en el árbol de hilos activos de la JVM.
-
-### ¿Cómo se resolvería un conflicto de Git sin sobrescribir el trabajo de otro integrante? Describan y documenten el procedimiento.
-1. Traer los últimos cambios validados de la rama principal:
-   ```bash
-   git checkout feature/mi-rama
-   git fetch origin
-   git merge origin/main
+### 4. ¿Qué mejoraría para procesar 100,000 solicitudes?
+* **Pool de Hilos con `ExecutorService`:** En lugar de crear hilos manuales que saturan la memoria del sistema operativo y aumentan el costo de *context switching*, se emplearía un `ThreadPoolExecutor` con una cola de tareas acotada (`BlockingQueue`).
+* **Actualización por Lotes (*Batching*):** Despachar 100,000 invocaciones individuales con `Platform.runLater()` colapsaría la cola de renderizado de JavaFX. Se debe desacoplar el procesamiento del renderizado, agrupando las actualizaciones visuales cada 100 operaciones o utilizando un `AnimationTimer` sincronizado a 60 FPS para refrescar los controles visuales únicamente cuando haya cambios acumulados.
